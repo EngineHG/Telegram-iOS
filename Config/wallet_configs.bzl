@@ -33,7 +33,7 @@ def app_binary_configs():
         "PRODUCT_BUNDLE_SHORT_VERSION": get_short_version(),
         "APP_NAME": "TON Wallet",
         "PRODUCT_NAME": "TON Wallet",
-        "TARGETED_DEVICE_FAMILY": "1,2",
+        "TARGETED_DEVICE_FAMILY": "1",
     }
     config = merge_dict(SHARED_CONFIGS, config)
     config = merge_dict(config, optimization_config())
@@ -54,6 +54,6 @@ def app_info_plist_substitutions():
         "BUILD_NUMBER": get_build_number(),
         "PRODUCT_BUNDLE_SHORT_VERSION": get_short_version(),
         "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIconWallet",
-        "TARGETED_DEVICE_FAMILY": "1,2",
+        "TARGETED_DEVICE_FAMILY": "1",
     }
     return substitutions
