@@ -34,6 +34,7 @@ public class UniversalVideoGalleryItem: GalleryItem {
     let contentInfo: UniversalVideoGalleryItemContentInfo?
     let caption: NSAttributedString
     let credit: NSAttributedString?
+    let displayInfoOnTop: Bool
     let hideControls: Bool
     let fromPlayingVideo: Bool
     let landscape: Bool
@@ -45,7 +46,7 @@ public class UniversalVideoGalleryItem: GalleryItem {
     let storeMediaPlaybackState: (MessageId, Double?) -> Void
     let present: (ViewController, Any?) -> Void
 
-    public init(context: AccountContext, presentationData: PresentationData, content: UniversalVideoContent, originData: GalleryItemOriginData?, indexData: GalleryItemIndexData?, contentInfo: UniversalVideoGalleryItemContentInfo?, caption: NSAttributedString, credit: NSAttributedString? = nil, hideControls: Bool = false, fromPlayingVideo: Bool = false, landscape: Bool = false, timecode: Double? = nil, configuration: GalleryConfiguration? = nil, playbackCompleted: @escaping () -> Void = {}, performAction: @escaping (GalleryControllerInteractionTapAction) -> Void, openActionOptions: @escaping (GalleryControllerInteractionTapAction) -> Void, storeMediaPlaybackState: @escaping (MessageId, Double?) -> Void, present: @escaping (ViewController, Any?) -> Void) {
+    public init(context: AccountContext, presentationData: PresentationData, content: UniversalVideoContent, originData: GalleryItemOriginData?, indexData: GalleryItemIndexData?, contentInfo: UniversalVideoGalleryItemContentInfo?, caption: NSAttributedString, credit: NSAttributedString? = nil, displayInfoOnTop: Bool = false, hideControls: Bool = false, fromPlayingVideo: Bool = false, landscape: Bool = false, timecode: Double? = nil, configuration: GalleryConfiguration? = nil, playbackCompleted: @escaping () -> Void = {}, performAction: @escaping (GalleryControllerInteractionTapAction) -> Void, openActionOptions: @escaping (GalleryControllerInteractionTapAction) -> Void, storeMediaPlaybackState: @escaping (MessageId, Double?) -> Void, present: @escaping (ViewController, Any?) -> Void) {
         self.context = context
         self.presentationData = presentationData
         self.content = content
@@ -54,6 +55,7 @@ public class UniversalVideoGalleryItem: GalleryItem {
         self.contentInfo = contentInfo
         self.caption = caption
         self.credit = credit
+        self.displayInfoOnTop = displayInfoOnTop
         self.hideControls = hideControls
         self.fromPlayingVideo = fromPlayingVideo
         self.landscape = landscape
@@ -75,6 +77,10 @@ public class UniversalVideoGalleryItem: GalleryItem {
         
         node.setupItem(self)
         
+        if self.displayInfoOnTop, case let .message(message) = self.contentInfo {
+            node.titleContentView?.setMessage(message, presentationData: self.presentationData, accountPeerId: self.context.account.peerId)
+        }
+        
         return node
     }
     
@@ -85,6 +91,10 @@ public class UniversalVideoGalleryItem: GalleryItem {
             }
             
             node.setupItem(self)
+            
+            if self.displayInfoOnTop, case let .message(message) = self.contentInfo {
+                node.titleContentView?.setMessage(message, presentationData: self.presentationData, accountPeerId: self.context.account.peerId)
+            }
         }
     }
     
@@ -249,11 +259,13 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
     fileprivate let _titleView = Promise<UIView?>()
     fileprivate let _rightBarButtonItems = Promise<[UIBarButtonItem]?>()
     
+    fileprivate var titleContentView: GalleryTitleView?
     private let scrubberView: ChatVideoGalleryItemScrubberView
     private let footerContentNode: ChatItemGalleryFooterContentNode
     private let overlayContentNode: UniversalVideoGalleryItemOverlayNode
     
     private var videoNode: UniversalVideoNode?
+    private var videoNodeUserInteractionEnabled: Bool = false
     private var videoFramePreview: FramePreview?
     private var pictureInPictureNode: UniversalVideoGalleryItemPictureInPictureNode?
     private let statusButtonNode: HighlightableButtonNode
@@ -309,7 +321,6 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
         self.statusNode.frame = CGRect(origin: CGPoint(), size: CGSize(width: 50.0, height: 50.0))
         
         self._title.set(.single(""))
-        self._titleView.set(.single(nil))
         
         super.init()
         
@@ -412,6 +423,9 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
             strongSelf.pictureInPictureButtonPressed()
             return true
         }
+        
+        self.titleContentView = GalleryTitleView(frame: CGRect())
+        self._titleView.set(.single(self.titleContentView))
     }
     
     deinit {
@@ -480,6 +494,7 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
             var disablePictureInPicture = false
             var disablePlayerControls = false
             var forceEnablePiP = false
+            var forceEnableUserInteraction = false
             var isAnimated = false
             if let content = item.content as? NativeVideoContent {
                 isAnimated = content.fileReference.media.isAnimated
@@ -490,6 +505,7 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
                 let type = webEmbedType(content: content.webpageContent)
                 switch type {
                     case .youtube:
+                        forceEnableUserInteraction = true
                         disablePictureInPicture = !(item.configuration?.youtubePictureInPictureEnabled ?? false)
                         self.videoFramePreview = YoutubeEmbedFramePreview(context: item.context, content: content)
                     case .iframe:
@@ -514,7 +530,14 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
             let mediaManager = item.context.sharedContext.mediaManager
             
             let videoNode = UniversalVideoNode(postbox: item.context.account.postbox, audioSession: mediaManager.audioSession, manager: mediaManager.universalVideoManager, decoration: GalleryVideoDecoration(), content: item.content, priority: .gallery)
-            let videoSize = CGSize(width: item.content.dimensions.width * 2.0, height: item.content.dimensions.height * 2.0)
+            
+            let videoScale: CGFloat
+            if item.content is WebEmbedVideoContent {
+                videoScale = 1.0
+            } else {
+                videoScale = 2.0
+            }
+            let videoSize = CGSize(width: item.content.dimensions.width * videoScale, height: item.content.dimensions.height * videoScale)
             videoNode.updateLayout(size: videoSize, transition: .immediate)
             videoNode.ownsContentNodeUpdated = { [weak self] value in
                 if let strongSelf = self {
@@ -533,7 +556,8 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
                 }
             }
             self.videoNode = videoNode
-            videoNode.isUserInteractionEnabled = disablePlayerControls
+            self.videoNodeUserInteractionEnabled = disablePlayerControls || forceEnableUserInteraction
+            videoNode.isUserInteractionEnabled = disablePlayerControls || forceEnableUserInteraction
             videoNode.backgroundColor = videoNode.ownsContentNode ? UIColor.black : UIColor(rgb: 0x333335)
             if item.fromPlayingVideo {
                 videoNode.canAttachContent = false
@@ -612,6 +636,7 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
                     var isPaused = true
                     var seekable = false
                     var hasStarted = false
+                    var displayProgress = true
                     if let value = value {
                         hasStarted = value.timestamp > 0
                         
@@ -626,7 +651,8 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
                             case .playing:
                                 isPaused = false
                                 playing = true
-                            case let .buffering(_, whilePlaying, _):
+                            case let .buffering(_, whilePlaying, _, display):
+                                displayProgress = display
                                 initialBuffering = true
                                 isPaused = !whilePlaying
                                 var isStreaming = false
@@ -656,6 +682,10 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
                                     if !content.enableSound {
                                         isPaused = false
                                     }
+                                } else {
+                                    strongSelf.updateControlsVisibility(true)
+                                    strongSelf.controlsTimer?.invalidate()
+                                    strongSelf.controlsTimer = nil
                                 }
                         }
                         seekable = value.duration >= 30.0
@@ -678,7 +708,11 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
                     
                     var fetching = false
                     if initialBuffering {
-                        strongSelf.statusNode.transitionToState(.progress(color: .white, lineWidth: nil, value: nil, cancelEnabled: false), animated: false, completion: {})
+                        if displayProgress {
+                            strongSelf.statusNode.transitionToState(.progress(color: .white, lineWidth: nil, value: nil, cancelEnabled: false), animated: false, completion: {})
+                        } else {
+                            strongSelf.statusNode.transitionToState(.none, animated: false, completion: {})
+                        }
                     } else {
                         var state: RadialStatusNodeState = .play(.white)
                         
@@ -756,7 +790,7 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
         if let contentInfo = item.contentInfo {
             switch contentInfo {
                 case let .message(message):
-                    self.footerContentNode.setMessage(message)
+                    self.footerContentNode.setMessage(message, displayInfo: !item.displayInfoOnTop)
                 case let .webPage(webPage, media, _):
                     self.footerContentNode.setWebPage(webPage, media: media)
             }
@@ -767,6 +801,9 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
     override func controlsVisibilityUpdated(isVisible: Bool) {
         self.controlsTimer?.invalidate()
         self.controlsTimer = nil
+        
+        self.videoNode?.isUserInteractionEnabled = isVisible ? self.videoNodeUserInteractionEnabled : false
+        self.videoNode?.notifyPlaybackControlsHidden(!isVisible)
     }
     
     private func updateDisplayPlaceholder(_ displayPlaceholder: Bool) {
@@ -1352,7 +1389,7 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
                 
                 switch contentInfo {
                     case let .message(message):
-                        let gallery = GalleryController(context: context, source: .peerMessagesAtId(message.id), replaceRootController: { controller, ready in
+                        let gallery = GalleryController(context: context, source: .peerMessagesAtId(messageId: message.id, chatLocation: .peer(message.id.peerId), chatLocationContextHolder: Atomic<ChatLocationContextHolder?>(value: nil)), replaceRootController: { controller, ready in
                             if let baseNavigationController = baseNavigationController {
                                 baseNavigationController.replaceTopController(controller, animated: false, ready: ready)
                             }
@@ -1434,7 +1471,7 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
                 
                 switch contentInfo {
                     case let .message(message):
-                        let gallery = GalleryController(context: context, source: .peerMessagesAtId(message.id), replaceRootController: { controller, ready in
+                        let gallery = GalleryController(context: context, source: .peerMessagesAtId(messageId: message.id, chatLocation: .peer(message.id.peerId), chatLocationContextHolder: Atomic<ChatLocationContextHolder?>(value: nil)), replaceRootController: { controller, ready in
                             if let baseNavigationController = baseNavigationController {
                                 baseNavigationController.replaceTopController(controller, animated: false, ready: ready)
                             }
@@ -1535,6 +1572,12 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
                 (baseNavigationController?.topViewController as? ViewController)?.present(controller, in: .window(.root), with: nil)
             })
         }
+    }
+    
+    override func adjustForPreviewing() {
+        super.adjustForPreviewing()
+        
+        self.scrubberView.isHidden = true
     }
     
     override func footerContent() -> Signal<(GalleryFooterContentNode?, GalleryOverlayContentNode?), NoError> {
