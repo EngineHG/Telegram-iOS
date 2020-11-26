@@ -109,7 +109,7 @@ openssl_headers = [
 
 openssl_header_paths = ["openssl/" + header for header in openssl_headers]
 
-archs = ["arm64", "armv7", "x86_64"]
+archs = ["arm64", "x86_64"]
 
 rules = [
     genrule(

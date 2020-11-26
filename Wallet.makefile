@@ -30,7 +30,6 @@ wallet_app_debug_arm64:
 	"${BAZEL}" build Wallet/Wallet ${BAZEL_CACHE_FLAGS} ${BAZEL_COMMON_FLAGS} ${BAZEL_DEBUG_FLAGS} \
 	-c dbg \
 	--ios_multi_cpus=arm64 \
-	--watchos_cpus=armv7k,arm64_32 \
 	--verbose_failures
 
 wallet_app:
@@ -39,7 +38,6 @@ wallet_app:
 	"${BAZEL}" build Wallet/Wallet ${BAZEL_CACHE_FLAGS} ${BAZEL_COMMON_FLAGS} ${BAZEL_OPT_FLAGS} \
 	-c opt \
 	--ios_multi_cpus=armv7,arm64 \
-	--watchos_cpus=armv7k,arm64_32 \
 	--verbose_failures
 
 bazel_wallet_prepare_development_build:

@@ -99,7 +99,7 @@ plist_fragment(
     <string>LaunchScreen</string>
     <key>UIRequiredDeviceCapabilities</key>
     <array>
-        <string>armv7</string>
+        <string>arm64</string>
     </array>
     <key>UIRequiresPersistentWiFi</key>
     <true/>

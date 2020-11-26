@@ -175,7 +175,6 @@ apple_bundle(
         ":NotificationContentExtension",
         ":NotificationServiceExtension",
         ":IntentsExtension",
-        ":WatchApp#watch",
     ]
     + framework_bundle_dependencies(framework_dependencies),
 )
@@ -415,123 +414,6 @@ apple_bundle(
     deps = [
     ],
     xcode_product_type = "com.apple.product-type.app-extension",
-)
-
-# Watch
-
-apple_resource(
-    name = "WatchAppStringResources",
-    files = [],
-    variants = glob([
-        "Telegram-iOS/*.lproj/Localizable.strings",
-    ]),
-    visibility = ["PUBLIC"],
-)
-
-apple_resource(
-    name = "WatchAppExtensionResources",
-    files = glob([
-        "Watch/Extension/Resources/**/*",
-    ], exclude = ["Watch/Extension/Resources/**/.*"]),
-    visibility = ["PUBLIC"],
-)
-
-apple_binary(
-    name = "WatchAppExtensionBinary",
-    srcs = glob([
-        "Watch/Extension/**/*.m",
-        "Watch/SSignalKit/**/*.m",
-        "Watch/Bridge/**/*.m",
-        "Watch/WatchCommonWatch/**/*.m",
-    ]),
-    headers = merge_maps([
-        glob_map(glob([
-            "Watch/Extension/*.h",
-            "Watch/Bridge/*.h",
-        ])),
-        glob_sub_map("Watch/Extension/", glob([
-            "Watch/Extension/SSignalKit/*.h",
-        ])),
-        glob_sub_map("Watch/", glob([
-            "Watch/WatchCommonWatch/*.h",
-        ])),
-    ]),
-    compiler_flags = [
-        "-DTARGET_OS_WATCH=1",
-    ],
-    linker_flags = [
-        "-e",
-        "_WKExtensionMain",
-        "-lWKExtensionMainLegacy",
-    ],
-    configs = watch_extension_binary_configs(),
-    frameworks = [
-        "$SDKROOT/System/Library/Frameworks/UserNotifications.framework",
-        "$SDKROOT/System/Library/Frameworks/CoreLocation.framework",
-        "$SDKROOT/System/Library/Frameworks/CoreGraphics.framework",
-    ],
-    deps = [
-        ":WatchAppStringResources",
-        ":WatchAppExtensionResources",
-    ],
-)
-
-apple_bundle(
-    name = "WatchAppExtension",
-    binary = ":WatchAppExtensionBinary",
-    extension = "appex",
-    info_plist = "Watch/Extension/Info.plist",
-    info_plist_substitutions = watch_extension_info_plist_substitutions(),
-    xcode_product_type = "com.apple.product-type.watchkit2-extension",
-)
-
-apple_resource(
-    name = "WatchAppResources",
-    dirs = [],
-    files = glob(["Watch/Extension/Resources/*.png"])
-)
-
-apple_asset_catalog(
-  name = "WatchAppAssets",
-  dirs = [
-    "Watch/App/Assets.xcassets",
-  ],
-  app_icon = "AppIcon",
-  visibility = ["PUBLIC"],
-)
-
-apple_resource(
-    name = "WatchAppInterface",
-    files = [
-        "Watch/App/Base.lproj/Interface.storyboard",
-    ],
-    visibility = ["PUBLIC"],
-)
-
-apple_binary(
-    name = "WatchAppBinary",
-    configs = watch_binary_configs(),
-    deps = [
-        ":WatchAppResources",
-        ":WatchAppAssets",
-        ":WatchAppInterface",
-        ":WatchAppStringResources",
-    ],
-)
-
-apple_bundle(
-    name = "WatchApp",
-    binary = ":WatchAppBinary",
-    visibility = [
-        "//Telegram:...",
-    ],
-    extension = "app",
-    info_plist = "Watch/App/Info.plist",
-    info_plist_substitutions = watch_info_plist_substitutions(),
-    xcode_product_type = "com.apple.product-type.application.watchapp2",
-    deps = [
-        ":WatchAppExtension",
-    ],
 )
 
 # Package
