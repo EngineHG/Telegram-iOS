@@ -238,16 +238,6 @@ open class NavigationController: UINavigationController, ContainableController, 
     deinit {
     }
     
-    open override func viewWillAppear(_ animated: Bool) {
-        print("NV viewWillAppear",self)
-        super.viewWillAppear(animated)
-    }
-    open override func viewWillDisappear(_ animated: Bool) {
-        print("NV viewWillDisappear",self)
-        super.viewWillDisappear(animated)
-    }
-    
-    
     public func combinedSupportedOrientations(currentOrientationToLock: UIInterfaceOrientationMask) -> ViewControllerSupportedOrientations {
         var supportedOrientations = ViewControllerSupportedOrientations(regularSize: .all, compactSize: .allButUpsideDown)
         if let rootContainer = self.rootContainer {
@@ -1171,8 +1161,9 @@ open class NavigationController: UINavigationController, ContainableController, 
     open override func popViewController(animated: Bool) -> UIViewController? {
         var controller: UIViewController?
         var controllers = self.viewControllers
-        if controllers.count > 1 {
-            controller = controllers.removeLast()
+        if controllers.count != 0 {
+            controller = controllers[controllers.count - 1] as UIViewController
+            controllers.remove(at: controllers.count - 1)
             self.setViewControllers(controllers, animated: animated)
         }
         return controller

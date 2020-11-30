@@ -213,7 +213,6 @@ framework(
         "//submodules/AnimatedAvatarSetNode:AnimatedAvatarSetNode",
         "//submodules/SlotMachineAnimationNode:SlotMachineAnimationNode",
         "//submodules/AnimatedNavigationStripeNode:AnimatedNavigationStripeNode",
-        "//Halo/Extension:Extension",
     ],
     frameworks = [
         "$SDKROOT/System/Library/Frameworks/Foundation.framework",
