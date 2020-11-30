@@ -44,6 +44,9 @@ import CoreSpotlight
 import BackgroundTasks
 #endif
 
+//Halo
+import Extension
+
 private let handleVoipNotifications = false
 
 private var testIsLaunched = false
